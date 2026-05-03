@@ -2,12 +2,10 @@
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from "groq-sdk";
 import { revalidatePath } from "next/cache";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 export async function saveResume(content) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -87,9 +85,11 @@ export async function improveWithAI({ current, type }) {
   `;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const improvedContent = response.text().trim();
+    const result = await groq.chat.completions.create({
+  messages: [{ role: "user", content: prompt }],
+  model: "llama-3.3-70b-versatile",
+});
+const improvedContent = result.choices[0]?.message?.content.trim();
     return improvedContent;
   } catch (error) {
     console.error("Error improving content:", error);
